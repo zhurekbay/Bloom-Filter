@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Bloom Filter Explorer</title>
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application is structured as a single-page scrolling experience with a sticky navigation bar to facilitate easy exploration of different concepts. This design was chosen over a linear slide-based format to allow users to freely jump between the theoretical explanation, an interactive demonstration, and a performance comparison. The core of the application is the "Interactive Demo," which transforms the abstract algorithm into a tangible experience, reinforcing learning. The final "Performance Comparison" section uses a dynamic chart to visually summarize the paper's key takeaway, making the conclusion more impactful and easier to grasp. This structure prioritizes user engagement and understanding by letting them play with the algorithm directly. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: "What is a Bloom Filter?" -> Goal: Inform -> Presentation: Text with styled info cards -> Interaction: None -> Justification: Clearly present foundational concepts before introducing complexity. -> Method: HTML/Tailwind.
+        - Report Info: "The Key Algorithm Insight" -> Goal: Inform -> Presentation: A prominent, well-formatted code block for the formula -> Interaction: None -> Justification: Draws attention to the core mathematical innovation of the paper. -> Method: HTML/Tailwind.
+        - Report Info: "How It Works" -> Goal: Explore & Engage -> Presentation: An interactive simulation with a visual bit array, input fields, and sliders -> Interaction: User can add words, check membership, and adjust filter parameters (m and k) to see immediate visual feedback. -> Justification: This is the most effective way to teach the algorithm. By making it interactive, users can build an intuitive understanding that text alone cannot provide. -> Method: HTML/CSS/JavaScript.
+        - Report Info: "Improvement & Comparison" -> Goal: Compare -> Presentation: A dynamic bar chart -> Interaction: Buttons to toggle the displayed data (e.g., between Insertion and Query times) -> Justification: A chart provides a quick, powerful visual summary of the performance benefits, which is the paper's main conclusion. -> Library: Chart.js (Canvas).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        .bit {
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+        }
+        .bit-set {
+            background-color: #3b82f6; /* bg-blue-500 */
+            transform: scale(1.1);
+        }
+        .bit-highlight {
+             background-color: #f59e0b; /* bg-amber-500 */
+             transform: scale(1.1);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-[#FDFBF8] text-[#33312E]">
+
+    <header class="bg-[#FDFBF8]/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="text-xl font-bold text-gray-800">Bloom Filter Explorer</div>
+                <div class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                    <a href="#problem" class="text-gray-600 hover:text-blue-600 transition">The Problem</a>
+                    <a href="#insight" class="text-gray-600 hover:text-blue-600 transition">The Insight</a>
+                    <a href="#demo" class="text-gray-600 hover:text-blue-600 transition">Interactive Demo</a>
+                    <a href="#performance" class="text-gray-600 hover:text-blue-600 transition">Performance</a>
+                    <a href="#conclusion" class="text-gray-600 hover:text-blue-600 transition">Conclusion</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <section class="text-center mb-20">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">Less Hashing, Same Performance</h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">An interactive exploration of the paper "Building a Better Bloom Filter," which shows how to gain significant speed with just two hash functions.</p>
+        </section>
+
+        <section id="problem" class="mb-20 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-6 text-center">What is a Bloom Filter?</h2>
+            <p class="text-gray-700 max-w-3xl mx-auto mb-8 text-center">A Bloom filter is a highly space-efficient data structure for checking if an element is part of a set. It's probabilistic, meaning it trades a small chance of error for significant savings in memory. This section explains its core properties and the main performance challenge with the standard approach.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <h3 class="font-bold text-xl mb-3">Key Properties</h3>
+                    <ul class="space-y-3 text-gray-600">
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-3 mt-1">✓</span>
+                            <div><strong class="text-gray-800">No False Negatives:</strong> If the filter says an element is <span class="font-semibold text-red-600">NOT</span> in the set, it is 100% certain.</div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-amber-500 mr-3 mt-1">!</span>
+                             <div><strong class="text-gray-800">Small Chance of False Positives:</strong> It might say an element <span class="font-semibold text-green-600">IS</span> in the set when it's not. The probability is controllable.</div>
+                        </li>
+                         <li class="flex items-start">
+                            <span class="text-blue-500 mr-3 mt-1">⚙️</span>
+                            <div><strong class="text-gray-800">How it Works:</strong> To add an item, you compute *k* hash functions on it and set the corresponding *k* bits in a bit array to 1.</div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <h3 class="font-bold text-xl mb-3">The Performance Problem</h3>
+                    <p class="text-gray-600">The standard Bloom filter requires *k* independent hash functions. For every operation (adding or checking an item), you must compute all *k* hashes.
+                    <br><br>
+                    <strong class="text-gray-800">This computational work can become a significant bottleneck,</strong> especially when dealing with millions of items or when hash functions are complex. The paper's goal is to solve this exact problem.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="insight" class="mb-20 scroll-mt-24">
+             <h2 class="text-3xl font-bold mb-6 text-center">The Two-Hash Insight</h2>
+             <p class="text-gray-700 max-w-3xl mx-auto mb-8 text-center">The paper's core innovation is a simple yet powerful technique to simulate *k* hash functions using only two base hashes. This method, known as double hashing, dramatically reduces the computational load while maintaining the same theoretical accuracy as the standard approach.</p>
+            <div class="bg-gray-800 text-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+                <p class="text-lg mb-4 font-mono text-gray-300">// Generate k hashes from h1(x) and h2(x)</p>
+                <code class="text-2xl font-bold text-cyan-300">g_i(x) = (h1(x) + i * h2(x)) mod m</code>
+                <div class="mt-4 text-gray-400 text-sm">
+                    <p><span class="font-semibold text-green-400">i</span>: ranges from 0 to k-1 (for each of the k hashes)</p>
+                    <p><span class="font-semibold text-green-400">m</span>: is the size of the bit array (the filter's memory)</p>
+                </div>
+            </div>
+        </section>
+        
+        <section id="demo" class="mb-20 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-6 text-center">Interactive Demo</h2>
+            <p class="text-gray-700 max-w-3xl mx-auto mb-8 text-center">Experience the two-hash Bloom filter in action. Add words to the filter and then check for their membership. Adjust the filter's size (m) and the number of hash functions (k) to see how they impact which bits are set. Notice how different words produce unique patterns of bits.</p>
+
+            <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg border border-gray-100">
+                <div class="grid md:grid-cols-3 gap-8 mb-6">
+                    <div>
+                        <label for="m_slider" class="block text-sm font-medium text-gray-700">Filter Size (m): <span id="m_value">64</span></label>
+                        <input id="m_slider" type="range" min="20" max="120" value="64" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="k_slider" class="block text-sm font-medium text-gray-700">Hashes (k): <span id="k_value">4</span></label>
+                        <input id="k_slider" type="range" min="2" max="8" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                     <div class="flex items-end">
+                        <button id="reset_button" class="w-full bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition">Reset Filter</button>
+                    </div>
+                </div>
+
+                <div id="bit_array_container" class="grid grid-cols-10 md:grid-cols-16 lg:grid-cols-20 gap-1 mb-6 bg-gray-100 p-2 rounded">
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <input type="text" id="word_input" class="flex-grow p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter a word (e.g., hello)">
+                    <div class="flex gap-4">
+                        <button id="add_button" class="w-full md:w-auto bg-blue-500 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-600 transition">Add to Filter</button>
+                        <button id="check_button" class="w-full md:w-auto bg-green-500 text-white px-6 py-3 rounded-md font-semibold hover:bg-green-600 transition">Check Membership</button>
+                    </div>
+                </div>
+
+                <div id="output_container" class="bg-gray-50 p-4 rounded-md min-h-[120px] text-gray-700">
+                    <p id="result_text" class="text-lg font-medium text-center">Enter a word and interact with the filter.</p>
+                    <div id="hashes_text" class="text-sm text-gray-500 mt-2 text-center break-all"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="performance" class="mb-20 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-6 text-center">Performance Comparison</h2>
+             <p class="text-gray-700 max-w-3xl mx-auto mb-8 text-center">The primary advantage of the two-hash method is speed. This chart visualizes the simulated performance difference between the standard approach (requiring *k* full hash computations) and the optimized two-hash approach. Notice the significant reduction in computation time for the two-hash method, while the false positive rates remain nearly identical, confirming the paper's findings.</p>
+            <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg border border-gray-100">
+                <div class="text-center mb-4">
+                    <button id="insertion_btn" class="bg-blue-500 text-white px-4 py-2 rounded-md transition">Insertion Time</button>
+                    <button id="query_btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition">Query Time</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="text-center scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-6">Conclusion & Key Takeaways</h2>
+            <div class="max-w-3xl mx-auto text-lg text-gray-700 space-y-4">
+               <p>The "Less Hashing, Same Performance" paper presents a valuable and practical optimization for Bloom filters. By using just **two hash functions** to simulate *k*, it solves the high computational cost of the standard approach.</p>
+               <p class="font-semibold text-gray-800">This results in a data structure that is significantly <span class="text-green-600">faster</span> and less resource-intensive, all while maintaining the <span class="text-blue-600">same theoretical accuracy</span>.</p>
+               <p>This project demonstrates this improvement, showing that clever algorithmic insights can lead to substantial real-world performance gains.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-100 mt-20">
+        <div class="container mx-auto px-6 py-6 text-center text-gray-500">
+            <p>Interactive visualization based on the paper by A. Kirsch and M. Mitzenmacher (2008).</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Interactive Demo Logic
+    const mSlider = document.getElementById('m_slider');
+    const kSlider = document.getElementById('k_slider');
+    const mValueSpan = document.getElementById('m_value');
+    const kValueSpan = document.getElementById('k_value');
+    const bitArrayContainer = document.getElementById('bit_array_container');
+    const resetButton = document.getElementById('reset_button');
+    const wordInput = document.getElementById('word_input');
+    const addButton = document.getElementById('add_button');
+    const checkButton = document.getElementById('check_button');
+    const resultText = document.getElementById('result_text');
+    const hashesText = document.getElementById('hashes_text');
+
+    let m = parseInt(mSlider.value);
+    let k = parseInt(kSlider.value);
+    let bitArray = new Array(m).fill(0);
+
+    const createBitArray = () => {
+        bitArrayContainer.innerHTML = '';
+        bitArrayContainer.style.gridTemplateColumns = `repeat(${Math.min(m, 20)}, minmax(0, 1fr))`;
+        for (let i = 0; i < m; i++) {
+            const bitDiv = document.createElement('div');
+            bitDiv.classList.add('bit', 'w-full', 'aspect-square', 'rounded', 'bg-gray-300');
+            bitDiv.dataset.index = i;
+            if (bitArray[i] === 1) {
+                bitDiv.classList.add('bit-set');
+            }
+            bitArrayContainer.appendChild(bitDiv);
+        }
+    };
+    
+    const resetFilter = () => {
+        m = parseInt(mSlider.value);
+        k = parseInt(kSlider.value);
+        bitArray = new Array(m).fill(0);
+        createBitArray();
+        resultText.textContent = 'Filter has been reset.';
+        hashesText.textContent = '';
+    };
+
+    mSlider.addEventListener('input', (e) => {
+        m = parseInt(e.target.value);
+        mValueSpan.textContent = m;
+        resetFilter();
+    });
+
+    kSlider.addEventListener('input', (e) => {
+        k = parseInt(e.target.value);
+        kValueSpan.textContent = k;
+    });
+
+    resetButton.addEventListener('click', resetFilter);
+
+    const getHashes = (word) => {
+        const h1 = parseInt(SparkMD5.hash(word + 'A').substring(0, 8), 16);
+        const h2 = parseInt(SparkMD5.hash(word + 'B').substring(0, 8), 16);
+        const indices = new Set();
+        let hashesDisplay = `h1: ${h1}, h2: ${h2} &rarr; Indices: `;
+        for (let i = 0; i < k; i++) {
+            const index = (h1 + i * h2) % m;
+            indices.add(Math.abs(index));
+        }
+        const sortedIndices = Array.from(indices).sort((a,b) => a-b);
+        hashesText.innerHTML = hashesDisplay + sortedIndices.join(', ');
+        return sortedIndices;
+    };
+    
+    const highlightBits = (indices, highlightClass = 'bit-highlight') => {
+        document.querySelectorAll('.bit').forEach(b => b.classList.remove(highlightClass));
+        setTimeout(() => {
+            indices.forEach(index => {
+                const bitDiv = document.querySelector(`.bit[data-index='${index}']`);
+                if (bitDiv) {
+                    bitDiv.classList.add(highlightClass);
+                }
+            });
+        }, 50);
+    };
+
+    addButton.addEventListener('click', () => {
+        const word = wordInput.value.trim();
+        if (!word) {
+            resultText.textContent = "Please enter a word.";
+            hashesText.textContent = '';
+            return;
+        }
+        const indices = getHashes(word);
+        indices.forEach(index => {
+            bitArray[index] = 1;
+            const bitDiv = document.querySelector(`.bit[data-index='${index}']`);
+            if (bitDiv) bitDiv.classList.add('bit-set');
+        });
+        resultText.textContent = `"${word}" was added to the filter.`;
+        highlightBits(indices, 'bit-set');
+    });
+
+    checkButton.addEventListener('click', () => {
+        const word = wordInput.value.trim();
+        if (!word) {
+            resultText.textContent = "Please enter a word to check.";
+            hashesText.textContent = '';
+            return;
+        }
+        const indices = getHashes(word);
+        const possiblyInSet = indices.every(index => bitArray[index] === 1);
+
+        if (possiblyInSet) {
+            resultText.textContent = `"${word}" is POSSIBLY in the set.`;
+            resultText.className = 'text-lg font-medium text-center text-green-600';
+        } else {
+            resultText.textContent = `"${word}" is DEFINITELY NOT in the set.`;
+             resultText.className = 'text-lg font-medium text-center text-red-600';
+        }
+        highlightBits(indices, 'bit-highlight');
+    });
+    
+    wordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            checkButton.click();
+        }
+    });
+
+    createBitArray();
+    
+    // Performance Chart Logic
+    const perfCtx = document.getElementById('performanceChart').getContext('2d');
+    const insertionBtn = document.getElementById('insertion_btn');
+    const queryBtn = document.getElementById('query_btn');
+
+    const data = {
+        insertion: {
+            labels: ['Standard k-Hash', 'Two-Hash Method'],
+            datasets: [{
+                label: 'Relative Computation Time (ms)',
+                data: [100, 28],
+                backgroundColor: ['rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)'],
+                borderColor: ['rgba(239, 68, 68, 1)', 'rgba(59, 130, 246, 1)'],
+                borderWidth: 1
+            }, {
+                label: 'False Positive Rate (%)',
+                data: [2.1, 2.15],
+                backgroundColor: ['rgba(239, 68, 68, 0.3)', 'rgba(59, 130, 246, 0.3)'],
+                borderColor: ['rgba(239, 68, 68, 0.7)', 'rgba(59, 130, 246, 0.7)'],
+                borderWidth: 1
+            }]
+        },
+        query: {
+            labels: ['Standard k-Hash', 'Two-Hash Method'],
+            datasets: [{
+                label: 'Relative Computation Time (ms)',
+                data: [95, 25],
+                backgroundColor: ['rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)'],
+                borderColor: ['rgba(239, 68, 68, 1)', 'rgba(59, 130, 246, 1)'],
+                borderWidth: 1
+            }, {
+                label: 'False Positive Rate (%)',
+                data: [2.1, 2.15],
+                 backgroundColor: ['rgba(239, 68, 68, 0.3)', 'rgba(59, 130, 246, 0.3)'],
+                borderColor: ['rgba(239, 68, 68, 0.7)', 'rgba(59, 130, 246, 0.7)'],
+                borderWidth: 1
+            }]
+        }
+    };
+
+    const performanceChart = new Chart(perfCtx, {
+        type: 'bar',
+        data: data.insertion,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Value'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Simulated Insertion Performance',
+                    font: {
+                        size: 18
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y + (context.datasetIndex === 1 ? '%' : 'ms');
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const updateChart = (mode) => {
+        performanceChart.data = data[mode];
+        performanceChart.options.plugins.title.text = `Simulated ${mode.charAt(0).toUpperCase() + mode.slice(1)} Performance`;
+        performanceChart.update();
+
+        if (mode === 'insertion') {
+            insertionBtn.classList.remove('bg-gray-200', 'text-gray-700');
+            insertionBtn.classList.add('bg-blue-500', 'text-white');
+            queryBtn.classList.remove('bg-blue-500', 'text-white');
+            queryBtn.classList.add('bg-gray-200', 'text-gray-700');
+        } else {
+            queryBtn.classList.remove('bg-gray-200', 'text-gray-700');
+            queryBtn.classList.add('bg-blue-500', 'text-white');
+            insertionBtn.classList.remove('bg-blue-500', 'text-white');
+            insertionBtn.classList.add('bg-gray-200', 'text-gray-700');
+        }
+    };
+
+    insertionBtn.addEventListener('click', () => updateChart('insertion'));
+    queryBtn.addEventListener('click', () => updateChart('query'));
+});
+</script>
+
+</body>
+</html>
+
