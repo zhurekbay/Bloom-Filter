@@ -9,7 +9,7 @@
     <!-- Visualization & Content Choices: 
         - Report Info: "What is a Bloom Filter?" -> Goal: Inform -> Presentation: Text with styled info cards -> Interaction: None -> Justification: Clearly present foundational concepts before introducing complexity. -> Method: HTML/Tailwind.
         - Report Info: "The Key Algorithm Insight" -> Goal: Inform -> Presentation: A prominent, well-formatted code block for the formula -> Interaction: None -> Justification: Draws attention to the core mathematical innovation of the paper. -> Method: HTML/Tailwind.
-        - Report Info: "How It Works" -> Goal: Explore & Engage -> Presentation: An interactive simulation with a visual bit array, input fields, and sliders -> Interaction: User can add words, check membership, and adjust filter parameters (m and k) to see immediate visual feedback. -> Justification: This is the most effective way to teach the algorithm. By making it interactive, users can build an intuitive understanding that text alone cannot provide. -> Method: HTML/CSS/JavaScript.
+        - Report Info: "How It Works" -> Goal: Explore & Engage -> Presentation: An interactive simulation with a visual bit array, input fields, and sliders -> Interaction: User can add words, check membership, and adjust filter parameters to see immediate visual feedback. -> Justification: This is the most effective way to teach the algorithm. By making it interactive, users can build an intuitive understanding that text alone cannot provide. -> Method: HTML/CSS/JavaScript.
         - Report Info: "Improvement & Comparison" -> Goal: Compare -> Presentation: A dynamic bar chart -> Interaction: Buttons to toggle the displayed data (e.g., between Insertion and Query times) -> Justification: A chart provides a quick, powerful visual summary of the performance benefits, which is the paper's main conclusion. -> Library: Chart.js (Canvas).
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
@@ -29,8 +29,10 @@
             transform: scale(1.1);
         }
         .bit-highlight {
-             background-color: #f59e0b; /* bg-amber-500 */
-             transform: scale(1.1);
+             transform: scale(1.2);
+             box-shadow: 0 0 8px 2px rgba(245, 158, 11, 0.8);
+             z-index: 10;
+             position: relative;
         }
         .chart-container {
             position: relative;
@@ -254,15 +256,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return sortedIndices;
     };
     
-    const highlightBits = (indices, highlightClass = 'bit-highlight') => {
-        document.querySelectorAll('.bit').forEach(b => b.classList.remove(highlightClass));
+    const temporarilyHighlightIndices = (indices) => {
+        const oldHighlights = document.querySelectorAll('.bit-highlight');
+        oldHighlights.forEach(bit => bit.classList.remove('bit-highlight'));
+
         setTimeout(() => {
+            const newHighlightDivs = [];
             indices.forEach(index => {
                 const bitDiv = document.querySelector(`.bit[data-index='${index}']`);
                 if (bitDiv) {
-                    bitDiv.classList.add(highlightClass);
+                    bitDiv.classList.add('bit-highlight');
+                    newHighlightDivs.push(bitDiv);
                 }
             });
+
+            setTimeout(() => {
+                newHighlightDivs.forEach(div => div.classList.remove('bit-highlight'));
+            }, 1500);
         }, 50);
     };
 
@@ -280,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bitDiv) bitDiv.classList.add('bit-set');
         });
         resultText.textContent = `"${word}" was added to the filter.`;
-        highlightBits(indices, 'bit-set');
+        temporarilyHighlightIndices(indices);
     });
 
     checkButton.addEventListener('click', () => {
@@ -300,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resultText.textContent = `"${word}" is DEFINITELY NOT in the set.`;
              resultText.className = 'text-lg font-medium text-center text-red-600';
         }
-        highlightBits(indices, 'bit-highlight');
+        temporarilyHighlightIndices(indices);
     });
     
     wordInput.addEventListener('keydown', (e) => {
@@ -417,4 +427,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
+
 
